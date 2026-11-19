@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Vídeo Institucional | Hospital</title>
+<style>
+*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;font-family:Arial,sans-serif}
+#player-wrap{position:fixed;inset:0;background:#000}#player{position:absolute;inset:0;width:100%;height:100%;border:0}
+#status{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);padding:12px 18px;border-radius:8px;color:#fff;background:rgba(0,0,0,.8);font-size:16px;text-align:center;max-width:90vw;z-index:5}
+#status.hidden{display:none}#audio{display:none;position:fixed;top:22px;left:50%;transform:translateX(-50%);z-index:10;border:0;border-radius:8px;padding:14px 20px;color:#fff;background:#1769aa;font-size:18px}
+</style>
+</head>
+<body>
+<div id="player-wrap"><div id="player"></div></div>
+<button id="audio">Ativar áudio</button>
+<div id="status">Carregando configuração do vídeo…</div>
+<script>
+/*
+  A página consulta config.json a cada 60 segundos.
+  Para trocar o vídeo, basta atualizar o campo "videoId" do config.json
+  no servidor onde esta página estiver hospedada. O endereço da página
+  nas TVs permanece sempre o mesmo.
+*/
+const CONFIG_URL = "./config.json";
+const statusBox = document.getElementById("status");
+const audioButton = document.getElementById("audio");
+let player = null, apiReady = false, currentVideoId = "", audioEnabled = false;
+
+function showStatus(message) {
+  statusBox.textContent = message;
+  statusBox.classList.remove("hidden");
+}
+function hideStatus() { statusBox.classList.add("hidden"); }
+
+function startYouTubeApi() {
+  if (window.YT && window.YT.Player) { apiReady = true; return; }
+  if (document.getElementById("youtube-api")) return;
+  const script = document.createElement("script");
+  script.id = "youtube-api";
+  script.src = "https://www.youtube.com/iframe_api";
+  document.head.appendChild(script);
+}
+window.onYouTubeIframeAPIReady = function() {
+  apiReady = true;
+  loadConfiguration();
+};
+
+function applyVideo(videoId) {
+  if (!videoId || videoId === "COLE_AQUI_O_ID_DO_VIDEO") {
+    showStatus("Configuração pendente: informe o ID do vídeo em config.json.");
+    return;
+  }
+  if (!apiReady) { startYouTubeApi(); return; }
+  if (videoId === currentVideoId && player) return;
+  currentVideoId = videoId;
+  showStatus("Carregando vídeo institucional…");
+  if (player) {
+    player.loadVideoById({videoId: videoId});
+    return;
+  }
+  player = new YT.Player("player", {
+    videoId: videoId,
+    playerVars: {autoplay:1,controls:0,disablekb:1,fs:0,loop:1,playlist:videoId,playsinline:1,rel:0,modestbranding:1,iv_load_policy:3},
+    events: {
+      onReady: function(e) {
+        e.target.mute();
+        e.target.playVideo();
+        hideStatus();
+        audioButton.style.display = "block";
+      },
+      onStateChange: function(e) {
+        if (e.data === YT.PlayerState.ENDED) e.target.playVideo();
+      },
+      onError: function() {
+        showStatus("Não foi possível carregar o vídeo. Verifique o link e a conexão.");
+      }
+    }
+  });
+}
+
+async function loadConfiguration() {
+  try {
+    const response = await fetch(CONFIG_URL + "?t=" + Date.now(), {cache:"no-store"});
+    if (!response.ok) throw new Error("configuração indisponível");
+    const config = await response.json();
+    if (config.videoId && config.videoId !== currentVideoId) applyVideo(config.videoId);
+    const seconds = Math.max(30, Number(config.checkEverySeconds) || 60);
+    window.setTimeout(loadConfiguration, seconds * 1000);
+  } catch (err) {
+    showStatus("Aguardando conexão com a central de vídeos…");
+    window.setTimeout(loadConfiguration, 30000);
+  }
+}
+
+audioButton.addEventListener("click", function() {
+  if (player && player.unMute) {
+    player.unMute(); player.setVolume(100); audioEnabled = true;
+    audioButton.style.display = "none";
+  }
+});
+
+startYouTubeApi();
+loadConfiguration();
+</script>
+</body>
+</html>
