@@ -30,11 +30,11 @@ let player = null, apiReady = false, currentVideoId = "", audioEnabled = false;
 
 function showStatus(message) {
   statusBox.textContent = message;
-  /*statusBox.classList.remove("hidden");*/
-  statusBox.classList.remove("");
+  statusBox.classList.remove("hidden");
+  
 }
-/*function hideStatus() { statusBox.classList.add("hidden"); }*/
-function hideStatus() { statusBox.classList.add(""); }
+function hideStatus() { statusBox.classList.add("hidden"); }
+
 
 function startYouTubeApi() {
   if (window.YT && window.YT.Player) { apiReady = true; return; }
